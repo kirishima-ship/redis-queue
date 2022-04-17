@@ -15,16 +15,16 @@ export class KirishimaQueueTracks extends Array<KirishimaPartialTrack | Kirishim
 			if (!Array.isArray(trackOrTracks)) {
 				this.current = trackOrTracks;
 				await this.kirishimaPlayer.kirishima.redisInstance.hset(
-					`kirishimaQueue:${this.kirishimaPlayer.connection.guildId}`,
-					'track',
+					`kirishimaQueue`,
+					this.kirishimaPlayer.connection.guildId,
 					JSON.stringify({ current: this.current, previous: this.previous })
 				);
 				return;
 			}
 			this.current = (trackOrTracks = [...trackOrTracks]).shift()!;
 			await this.kirishimaPlayer.kirishima.redisInstance.hset(
-				`kirishimaQueue:${this.kirishimaPlayer.connection.guildId}`,
-				'track',
+				`kirishimaQueue`,
+				this.kirishimaPlayer.connection.guildId,
 				JSON.stringify({ current: this.current, previous: this.previous })
 			);
 		}
@@ -57,7 +57,7 @@ export class KirishimaQueueTracks extends Array<KirishimaPartialTrack | Kirishim
 	public async clear(clearPlayer = true) {
 		this.splice(0);
 		await this.kirishimaPlayer.kirishima.redisInstance.del(`kirishimaQueueTracks:${this.kirishimaPlayer.connection.guildId}`);
-		if (clearPlayer) await this.kirishimaPlayer.kirishima.redisInstance.del(`kirishimaQueue:${this.kirishimaPlayer.connection.guildId}`);
+		if (clearPlayer) await this.kirishimaPlayer.kirishima.redisInstance.del(`kirishimaQueue`, this.kirishimaPlayer.connection.guildId);
 	}
 
 	public async shuffle() {

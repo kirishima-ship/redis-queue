@@ -57,7 +57,7 @@ export class KirishimaQueueTracks extends Array<KirishimaPartialTrack | Kirishim
 	public async clear(clearPlayer = true) {
 		this.splice(0);
 		await this.kirishimaPlayer.kirishima.redisInstance.del(`kirishimaQueueTracks:${this.kirishimaPlayer.connection.guildId}`);
-		if (clearPlayer) await this.kirishimaPlayer.kirishima.redisInstance.del(`kirishimaQueue`, this.kirishimaPlayer.connection.guildId);
+		if (clearPlayer) await this.kirishimaPlayer.kirishima.redisInstance.del(`kirishimaQueue:${this.kirishimaPlayer.connection.guildId}`);
 	}
 
 	public async shuffle() {

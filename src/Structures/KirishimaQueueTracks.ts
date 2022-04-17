@@ -15,16 +15,16 @@ export class KirishimaQueueTracks extends Array<KirishimaPartialTrack | Kirishim
 			if (!Array.isArray(trackOrTracks)) {
 				this.current = trackOrTracks;
 				await this.kirishimaPlayer.kirishima.redisInstance.hset(
-					`kirishimaQueue`,
-					this.kirishimaPlayer.connection.guildId,
+					`kirishimaQueue:${this.kirishimaPlayer.connection.guildId}`,
+					'track',
 					JSON.stringify({ current: this.current, previous: this.previous })
 				);
 				return;
 			}
 			this.current = (trackOrTracks = [...trackOrTracks]).shift()!;
 			await this.kirishimaPlayer.kirishima.redisInstance.hset(
-				`kirishimaQueue`,
-				this.kirishimaPlayer.connection.guildId,
+				`kirishimaQueue:${this.kirishimaPlayer.connection.guildId}`,
+				'track',
 				JSON.stringify({ current: this.current, previous: this.previous })
 			);
 		}

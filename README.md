@@ -2,13 +2,13 @@
 
 ![Kirishima Banner](https://cdn.discordapp.com/attachments/891939988088975372/931079377771450388/kirishima-ship-banner.png)
 
-# @kirishima/queue
+# @kirishima/redis-queue
 
 </div>
 
 # Instalation 
 ```
-npm install @kirishima/queue @kirishima/core
+npm install @kirishima/redis-queue @kirishima/core
 ```
 
 # Features

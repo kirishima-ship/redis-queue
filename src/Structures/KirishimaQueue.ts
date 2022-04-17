@@ -134,7 +134,7 @@ export class KirishimaQueue extends KirishimaPlugin {
 	}
 
 	private async defaultFetchPlayerHandler(guildId: string) {
-		const playerCache = await this.redisInstance.hget(`kirishimaQueue:${guildId}`, 'player');
+		const playerCache = await this.redisInstance.hget(`kirishimaQueue`, guildId);
 		const playerTracksCache = await this.redisInstance.lrange(`kirishimaQueueTracks:${guildId}`, 0, -1);
 		const player = playerCache ? (JSON.parse(playerCache) as KirishimaPlayerOptions) : null;
 		if (!player) return null;
@@ -147,8 +147,8 @@ export class KirishimaQueue extends KirishimaPlugin {
 		if (player) return player;
 		const kirishimaPlayer = new (Structure.get('KirishimaPlayer'))(options, this.kirishima, node);
 		await this.redisInstance.hset(
-			`kirishimaQueue:${guildId}`,
-			'player',
+			`kirishimaQueue`,
+			guildId,
 			JSON.stringify({ node: node.options.identifier, voiceState: undefined, current: null, previous: null })
 		);
 		return kirishimaPlayer;

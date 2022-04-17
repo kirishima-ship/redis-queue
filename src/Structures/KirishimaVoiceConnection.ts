@@ -64,11 +64,12 @@ export class KirishimaVoiceConnection {
 	}
 
 	public async destroy() {
-		this.state = ConnectionState.Destroyed;
+		this.state = ConnectionState.Destroying;
 		await this.player.node.ws.send({
 			op: WebsocketOpEnum.DESTROY,
 			guildId: this.guildId
 		});
 		await this.player.queue.clear();
+		this.state = ConnectionState.Destroyed;
 	}
 }

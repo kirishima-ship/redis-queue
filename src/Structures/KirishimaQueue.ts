@@ -171,7 +171,7 @@ export class KirishimaQueue extends KirishimaPlugin {
 		await this.redisInstance.hset(
 			`kirishimaQueue:${guildId}`,
 			'player',
-			JSON.stringify({ node: node.options.identifier, voiceState: undefined, current: null, previous: null })
+			JSON.stringify({ node: node.options.identifier, voiceState: undefined, current: null, previous: null, ...options })
 		);
 		return kirishimaPlayer;
 	}

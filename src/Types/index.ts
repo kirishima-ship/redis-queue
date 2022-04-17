@@ -65,5 +65,11 @@ declare module '@kirishima/core' {
 			previous: KirishimaPartialTrack | KirishimaTrack | null;
 		};
 		node?: string;
+		guildId: string;
+		shardId?: number;
+		channelId: string;
+		textChannelId?: string;
+		selfDeaf?: boolean;
+		selfMute?: boolean;
 	}
 }

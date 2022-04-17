@@ -75,6 +75,12 @@ export class KirishimaQueueTracks extends Array<KirishimaPartialTrack | Kirishim
 			await this.kirishimaPlayer.kirishima.redisInstance.rpush(`kirishimaQueueTracks:${this.kirishimaPlayer.connection.guildId}`, track);
 		}
 	}
+
+	public async shiftTrack() {
+		const track = await this.kirishimaPlayer.kirishima.redisInstance.lpop(`kirishimaQueueTracks:${this.kirishimaPlayer.connection.guildId}`);
+		super.shift();
+		return track ? JSON.parse(track) : null;
+	}
 }
 
 export function ValidateValidTracks(tracks: KirishimaPartialTrack | KirishimaTrack | (KirishimaPartialTrack | KirishimaTrack)[]) {

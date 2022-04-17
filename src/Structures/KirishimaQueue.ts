@@ -69,6 +69,12 @@ export class KirishimaQueue extends KirishimaPlugin {
 					return;
 				}
 
+				await player.kirishima.redisInstance.hset(
+					`kirishimaQueue:${player.connection.guildId}`,
+					'track',
+					JSON.stringify({ current: player.queue.current, previous: player.queue.previous })
+				);
+
 				if (player.queue.current) {
 					await player.playTrack(player.queue.current);
 					return;
@@ -78,7 +84,13 @@ export class KirishimaQueue extends KirishimaPlugin {
 			if (player.queue.current && player.loopType === LoopType.Queue) {
 				await player.queue.add(player.queue.current);
 				player.queue.previous = player.queue.current;
-				player.queue.current = player.queue.shift() ?? null;
+				player.queue.current = await player.queue.shiftTrack();
+
+				await player.kirishima.redisInstance.hset(
+					`kirishimaQueue:${player.connection.guildId}`,
+					'track',
+					JSON.stringify({ current: player.queue.current, previous: player.queue.previous })
+				);
 
 				if (player.queue.current) {
 					if (isPartialTrack(player.queue.current)) {
@@ -98,7 +110,13 @@ export class KirishimaQueue extends KirishimaPlugin {
 			}
 
 			player.queue.previous = player.queue.current;
-			player.queue.current = player.queue.shift() ?? null;
+			player.queue.current = await player.queue.shiftTrack();
+
+			await player.kirishima.redisInstance.hset(
+				`kirishimaQueue:${player.connection.guildId}`,
+				'track',
+				JSON.stringify({ current: player.queue.current, previous: player.queue.previous })
+			);
 
 			if (player.queue.current) {
 				if (isPartialTrack(player.queue.current)) {

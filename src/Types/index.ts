@@ -11,6 +11,7 @@ import type {
 import type { GatewayVoiceServerUpdateDispatchData } from 'discord-api-types/gateway/v9';
 import type { KirishimaQueueTracks } from '../Structures/KirishimaQueueTracks';
 import type { KirishimaVoiceConnection } from '../Structures/KirishimaVoiceConnection';
+import type { Snowflake } from 'discord-api-types/globals';
 
 export type NodeTrackRawMessage =
 	| TrackStartEventPayload
@@ -38,6 +39,25 @@ export enum ConnectionState {
 	Destroyed
 }
 
+export interface KirishimaPlayerToJSON {
+	node: string | undefined;
+	loopType: LoopType;
+	connected: boolean;
+	paused: boolean;
+	playing: boolean;
+	position: number;
+	connection: {
+		region: string | null;
+		channelId: Snowflake;
+		shardId: number | undefined;
+		textChannelId: Snowflake | undefined;
+		guildId: Snowflake;
+		isSelfDeaf: boolean;
+		isSelfMute: boolean;
+		state: ConnectionState;
+	};
+}
+
 declare module '@kirishima/core' {
 	export interface Kirishima {
 		redisInstance: Redis;
@@ -55,6 +75,8 @@ declare module '@kirishima/core' {
 		seekTo(position: number): Promise<this>;
 		playTrack(track?: KirishimaTrack | KirishimaPartialTrack | string): Promise<this>;
 		get connected(): boolean;
+		toJSON(): KirishimaPlayerToJSON;
+		overrideCurrentPropertyFromOptions(options: KirishimaPlayerToJSON): this;
 	}
 
 	export interface KirishimaPlayerOptions {

@@ -8,7 +8,7 @@ import {
 	KirishimaTrack,
 	Structure
 } from '@kirishima/core';
-import { ConnectionState, LoopType } from '../Types';
+import { ConnectionState, KirishimaPlayerToJSON, LoopType } from '../Types';
 import { KirishimaQueueTracks } from './KirishimaQueueTracks';
 import { KirishimaVoiceConnection } from './KirishimaVoiceConnection';
 
@@ -16,12 +16,45 @@ export class KirishimaPlayer extends Structure.get('KirishimaPlayer') {
 	public queue: KirishimaQueueTracks;
 	public loopType: LoopType = LoopType.None;
 	public connection = new KirishimaVoiceConnection(this);
+	public position = 0;
 
 	public constructor(public options: KirishimaPlayerOptions, kirishima: Kirishima, node: KirishimaNode) {
 		super(options, kirishima, node);
 		this.queue = new KirishimaQueueTracks(this, ...(options.tracks?.items ?? []));
 		this.queue.current = options.tracks?.current ?? null;
 		this.queue.previous = options.tracks?.previous ?? null;
+	}
+
+	public overrideCurrentPropertyFromOptions(options: KirishimaPlayerToJSON) {
+		if (options.loopType) {
+			this.loopType = options.loopType;
+		}
+
+		if (options.connected) {
+			this.connection.state = options.connected ? ConnectionState.Connected : ConnectionState.Disconnected;
+		}
+
+		if (options.paused) {
+			this.paused = options.paused;
+		}
+
+		if (options.playing) {
+			this.playing = options.playing;
+		}
+
+		if (options.connection) {
+			this.connection.overrideCurrentPropertyFromOptions(options.connection);
+		}
+
+		if (options.node && this.kirishima.resolveNode(options.node)) {
+			this.node = this.kirishima.resolveNode(options.node)!;
+		}
+
+		if (options.position) {
+			this.position = options.position;
+		}
+
+		return this;
 	}
 
 	public setLoop(type: LoopType) {
@@ -69,10 +102,30 @@ export class KirishimaPlayer extends Structure.get('KirishimaPlayer') {
 			}
 		}
 
-		throw new Error('No track to play');
+		if (typeof track === 'string') {
+			return super.playTrack(track);
+		}
+
+		if (typeof track === 'object' && track.track) {
+			return super.playTrack(track.track);
+		}
+
+		throw new Error('No track to play, is the track invalid?');
 	}
 
 	public get connected() {
 		return Boolean(this.voiceServer && this.voiceState?.channel_id && this.connection.state === ConnectionState.Connected);
+	}
+
+	public toJSON() {
+		return {
+			node: this.node.options.identifier,
+			loopType: this.loopType,
+			connected: this.connected,
+			paused: this.paused,
+			playing: this.playing,
+			position: this.position,
+			connection: this.connection.toJSON()
+		};
 	}
 }

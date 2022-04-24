@@ -1,6 +1,6 @@
 import { createVoiceChannelJoinPayload } from '@kirishima/core';
 import { WebsocketOpEnum } from 'lavalink-api-types';
-import { ConnectionState } from '../Types';
+import { ConnectionState, KirishimaPlayerToJSON } from '../Types';
 import type { KirishimaPlayer } from './KirishimaPlayer';
 
 export class KirishimaVoiceConnection {
@@ -71,5 +71,26 @@ export class KirishimaVoiceConnection {
 		});
 		await this.player.queue.clear();
 		this.state = ConnectionState.Destroyed;
+	}
+
+	public overrideCurrentPropertyFromOptions(options: KirishimaPlayerToJSON['connection']) {
+		this.player.options.selfDeaf = options.isSelfDeaf;
+		this.player.options.selfMute = options.isSelfMute;
+		this.player.options.channelId = options.channelId;
+		this.player.options.textChannelId = options.textChannelId;
+		this.player.options.guildId = options.guildId;
+	}
+
+	public toJSON() {
+		return {
+			region: this.region,
+			channelId: this.channelId,
+			shardId: this.shardId,
+			textChannelId: this.textChannelId,
+			guildId: this.guildId,
+			isSelfDeaf: this.isSelfDeaf,
+			isSelfMute: this.isSelfMute,
+			state: this.state
+		};
 	}
 }

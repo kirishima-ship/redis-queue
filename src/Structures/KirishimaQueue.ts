@@ -1,14 +1,17 @@
-import { isPartialTrack, Kirishima, KirishimaNode, KirishimaPlayerOptions, KirishimaPlugin, Structure } from '@kirishima/core';
+import {
+	isPartialTrack,
+	Kirishima,
+	KirishimaNode,
+	KirishimaPartialTrack,
+	KirishimaPlayerOptions,
+	KirishimaPlugin,
+	KirishimaTrack,
+	Structure
+} from '@kirishima/core';
 import type { Gateway } from '@kirishima/ws';
 import Redis from 'ioredis';
-import {
-	TrackEndEventPayload,
-	TrackExceptionEventPayload,
-	TrackStartEventPayload,
-	TrackStuckEventPayload,
-	WebSocketTypeEnum
-} from 'lavalink-api-types';
-import { QueueOptions, NodeTrackRawMessage, LoopType } from '../Types';
+import { TrackEndEventPayload, WebSocketTypeEnum } from 'lavalink-api-types';
+import { QueueOptions, NodeTrackRawMessage, LoopType, KirishimaPlayerToJSON } from '../Types';
 import { KirishimaPlayer } from './KirishimaPlayer';
 
 export class KirishimaQueue extends KirishimaPlugin {
@@ -33,8 +36,8 @@ export class KirishimaQueue extends KirishimaPlugin {
 		this.kirishima = kirishima;
 	}
 
-	private handleNodeRaw(_node: KirishimaNode, _gateway: Gateway, message: NodeTrackRawMessage, kirishima: Kirishima) {
-		const player = kirishima.options.fetchPlayer!(message.guildId) as KirishimaPlayer | null;
+	private async handleNodeRaw(_node: KirishimaNode, _gateway: Gateway, message: NodeTrackRawMessage, kirishima: Kirishima) {
+		const player = (await kirishima.options.fetchPlayer!(message.guildId)) as KirishimaPlayer | null;
 		if (!player) return;
 
 		if (message.type === WebSocketTypeEnum.TrackEndEvent) {
@@ -42,15 +45,17 @@ export class KirishimaQueue extends KirishimaPlugin {
 		}
 
 		if (message.type === WebSocketTypeEnum.TrackExceptionEvent) {
-			this.trackException(player, message, kirishima);
+			kirishima.emit('trackException', player, player.queue.current, message);
 		}
 
 		if (message.type === WebSocketTypeEnum.TrackStuckEvent) {
-			this.trackStuck(player, message, kirishima);
+			kirishima.emit('trackStuck', player, player.queue.current, message);
 		}
 
 		if (message.type === WebSocketTypeEnum.TrackStartEvent) {
-			this.trackStart(player, message, kirishima);
+			player.playing = true;
+			await this.redisInstance.hset(`kirishimaQueue:${message.guildId}`, 'player', JSON.stringify({ ...player.toJSON() }));
+			kirishima.emit('trackStart', player, player.queue.current, message);
 		}
 	}
 
@@ -58,6 +63,8 @@ export class KirishimaQueue extends KirishimaPlugin {
 		if (message.reason === 'REPLACED') return;
 		try {
 			player.playing = false;
+
+			await this.redisInstance.hset(`kirishimaQueue:${message.guildId}`, 'player', JSON.stringify({ ...player.toJSON() }));
 			if (player.loopType === LoopType.Track) {
 				if (isPartialTrack(player.queue.current) && player.queue.current) {
 					const track = await player.resolvePartialTrack(player.queue.current);
@@ -107,11 +114,16 @@ export class KirishimaQueue extends KirishimaPlugin {
 					return;
 				}
 				kirishima.emit('queueEnd', player, player);
+
+				await player.kirishima.redisInstance.hset(
+					`kirishimaQueue:${player.connection.guildId}`,
+					'track',
+					JSON.stringify({ current: player.queue.current, previous: player.queue.previous })
+				);
 			}
 
 			player.queue.previous = player.queue.current;
 			player.queue.current = await player.queue.shiftTrack();
-
 			await player.kirishima.redisInstance.hset(
 				`kirishimaQueue:${player.connection.guildId}`,
 				'track',
@@ -129,26 +141,19 @@ export class KirishimaQueue extends KirishimaPlugin {
 					return;
 				}
 
-				await player.playTrack(player.queue.current!);
+				await player.playTrack(player.queue.current);
 				return;
 			}
 			kirishima.emit('queueEnd', player, player);
+
+			await player.kirishima.redisInstance.hset(
+				`kirishimaQueue:${player.connection.guildId}`,
+				'track',
+				JSON.stringify({ current: player.queue.current, previous: player.queue.previous })
+			);
 		} catch (e) {
 			kirishima.emit('playerError', player, e);
 		}
-	}
-
-	private trackException(player: KirishimaPlayer, message: TrackExceptionEventPayload, kirishima: Kirishima) {
-		kirishima.emit('trackException', player, player.queue.current, message);
-	}
-
-	private trackStuck(player: KirishimaPlayer, message: TrackStuckEventPayload, kirishima: Kirishima) {
-		kirishima.emit('trackStuck', player, player.queue.current, message);
-	}
-
-	private trackStart(player: KirishimaPlayer, message: TrackStartEventPayload, kirishima: Kirishima) {
-		player.playing = true;
-		kirishima.emit('trackStart', player, player.queue.current, message);
 	}
 
 	private async defaultFetchPlayerHandler(guildId: string) {
@@ -157,22 +162,36 @@ export class KirishimaQueue extends KirishimaPlugin {
 		const playerTracksCache = await this.redisInstance.lrange(`kirishimaQueueTracks:${guildId}`, 0, -1);
 		const player = playerOptionsCache ? (JSON.parse(playerOptionsCache) as KirishimaPlayerOptions) : null;
 		const playerTrack = playerTrackCache ? JSON.parse(playerTrackCache) : null;
-		if (!player) return null;
-		player.tracks!.items = playerTracksCache.map((track) => JSON.parse(track)) ?? [];
-		player.tracks!.current = playerTrack.current;
-		player.tracks!.previous = playerTrack.previous;
-		return new KirishimaPlayer(player, this.kirishima, this.kirishima.resolveNode(player!.node)!);
+		if (player) {
+			player.tracks ??= {
+				items: playerTracksCache.map((track) => JSON.parse(track)) ?? [],
+				current: playerTrack?.current
+					? playerTrack?.current.track
+						? new KirishimaTrack(playerTrack.current)
+						: new KirishimaPartialTrack(playerTrack.current)
+					: null,
+				previous: playerTrack?.previous
+					? playerTrack?.previous.track
+						? new KirishimaTrack(playerTrack.previous)
+						: new KirishimaPartialTrack(playerTrack.previous)
+					: null
+			};
+			return new KirishimaPlayer(
+				player,
+				this.kirishima,
+				player.node ? this.kirishima.resolveNode(player!.node)! : this.kirishima.resolveNode()!
+			).overrideCurrentPropertyFromOptions(player as unknown as KirishimaPlayerToJSON);
+		}
+
+		return null;
 	}
 
-	private async defaultSpawnPlayerHandler(guildId: string, options: KirishimaPlayerOptions, node: KirishimaNode) {
+	private async defaultSpawnPlayerHandler(guildId: string, options: KirishimaPlayerOptions, node: KirishimaNode | undefined) {
 		const player = await this.kirishima.options.fetchPlayer!(guildId);
 		if (player) return player;
-		const kirishimaPlayer = new (Structure.get('KirishimaPlayer'))(options, this.kirishima, node);
-		await this.redisInstance.hset(
-			`kirishimaQueue:${guildId}`,
-			'player',
-			JSON.stringify({ node: node.options.identifier, voiceState: undefined, current: null, previous: null, ...options })
-		);
+		const kirishimaPlayer = new (Structure.get('KirishimaPlayer'))(options, this.kirishima, node ?? this.kirishima.resolveNode()!);
+		kirishimaPlayer.overrideCurrentPropertyFromOptions(options as unknown as KirishimaPlayerToJSON);
+		await this.redisInstance.hset(`kirishimaQueue:${guildId}`, 'player', JSON.stringify({ ...kirishimaPlayer.toJSON(), ...options }));
 		return kirishimaPlayer;
 	}
 }

@@ -36,7 +36,7 @@
   },
   "prettier": "@sapphire/prettier-config",
   "dependencies": {
-    "@kirishima/core": "^0.6.4",
+    "@kirishima/core": "^0.7.0",
     "@kirishima/ws": "^0.2.2",
     "discord-api-types": "^0.31.1",
     "ioredis": "^5.0.4",

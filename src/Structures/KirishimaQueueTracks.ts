@@ -1,4 +1,5 @@
 import { isPartialTrack, isTrack, KirishimaPartialTrack, KirishimaTrack } from '@kirishima/core';
+import { Util } from '../Util/Util';
 import type { KirishimaPlayer } from './KirishimaPlayer';
 
 export class KirishimaQueueTracks extends Array<KirishimaPartialTrack | KirishimaTrack> {
@@ -76,10 +77,10 @@ export class KirishimaQueueTracks extends Array<KirishimaPartialTrack | Kirishim
 		}
 	}
 
-	public async shiftTrack() {
+	public async shiftTrack(): Promise<KirishimaPartialTrack | KirishimaTrack | null> {
 		const track = await this.kirishimaPlayer.kirishima.redisInstance.lpop(`kirishimaQueueTracks:${this.kirishimaPlayer.connection.guildId}`);
 		super.shift();
-		return track ? JSON.parse(track) : null;
+		return Util.toValidTrack(track);
 	}
 }
 
